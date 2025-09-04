@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Pembayaran - SMP Santo Yusup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        .serviam-green { background: linear-gradient(135deg, #2d5016, #4a7c59); }
+        .serviam-light { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); }
+        .card-shadow { box-shadow: 0 10px 25px rgba(45, 80, 22, 0.1); }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="serviam-light min-h-screen">
+    <!-- Header -->
+    <header class="serviam-green text-white py-6 shadow-lg">
+        <div class="container mx-auto px-4 text-center">
+            <h1 class="text-3xl font-bold mb-2">SMP Santo Yusup</h1>
+            <p class="text-green-100 text-lg">Portal Pembayaran Siswa</p>
+        </div>
+    </header>
+
+    <!-- Admin Login -->
+    <div id="adminLoginSection" class="hidden container mx-auto px-4 py-12 max-w-md">
+        <div class="bg-white rounded-2xl card-shadow p-8 fade-in">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 serviam-green rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <span class="text-white text-2xl font-bold">🔐</span>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Login Admin</h2>
+                <p class="text-gray-600">Masukkan password untuk mengakses panel admin</p>
+            </div>
+            
+            <form onsubmit="adminLogin(event)" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Password Admin</label>
+                    <input type="password" id="adminPassword" required 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                           placeholder="Masukkan password">
+                </div>
+                <button type="submit" 
+                        class="w-full serviam-green text-white py-3 rounded-lg font-semibold hover:opacity-90 transition-all transform hover:scale-105">
+                    Masuk Admin
+                </button>
+            </form>
+            
+            <div class="mt-4 text-center">
+                <button onclick="showLogin()" class="text-green-600 hover:text-green-800 text-sm font-medium">Kembali ke Portal Siswa</button>
+            </div>
+            
+            <div id="adminLoginError" class="hidden mt-4 p-3 bg-red-100 border border-red-300 rounded-lg text-red-700 text-sm"></div>
+        </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div id="adminSection" class="hidden container mx-auto px-4 py-8 max-w-4xl">
+        <div class="bg-white rounded-2xl card-shadow p-8 fade-in">
+            <div class="flex items-center justify-between mb-8">
+                <h2 class="text-2xl font-bold text-gray-800">Panel Admin - Import Data Siswa</h2>
+                <div class="space-x-4">
+                    <button onclick="showLogin()" class="text-green-600 hover:text-green-800 font-medium">Portal Siswa</button>
+                    <button onclick="adminLogout()" class="text-red-600 hover:text-red-800 font-medium">Logout Admin</button>
+                </div>
+            </div>
+            
+            <!-- CSV Upload Section -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Upload File CSV/Excel</h3>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" class="hidden" onchange="handleFileUpload(event)">
+                    <label for="csvFile" class="cursor-pointer">
+                        <div class="text-gray-500 mb-2">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                        <p class="text-lg font-medium text-gray-700">Klik untuk upload file CSV/Excel</p>
+                        <p class="text-sm text-gray-500">Atau drag & drop file di sini</p>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Sample CSV Format -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Format File CSV yang Diperlukan</h3>
+                <div class="bg-gray-50 rounded-lg p-4 overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-300">
+                                <th class="text-left py-2 px-3 font-semibold">student_id</th>
+                                <th class="text-left py-2 px-3 font-semibold">name</th>
+                                <th class="text-left py-2 px-3 font-semibold">birthday</th>
+                                <th class="text-left py-2 px-3 font-semibold">class</th>
+                                <th class="text-left py-2 px-3 font-semibold">tuition</th>
+                                <th class="text-left py-2 px-3 font-semibold">building</th>
+                                <th class="text-left py-2 px-3 font-semibold">uniform</th>
+                                <th class="text-left py-2 px-3 font-semibold">status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b border-gray-200">
+                                <td class="py-2 px-3">2024001</td>
+                                <td class="py-2 px-3">Maria Angelica Putri</td>
+                                <td class="py-2 px-3">15 Maret 2010</td>
+                                <td class="py-2 px-3">8A</td>
+                                <td class="py-2 px-3">450000</td>
+                                <td class="py-2 px-3">150000</td>
+                                <td class="py-2 px-3">200000</td>
+                                <td class="py-2 px-3">Belum Lunas</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 px-3">2024002</td>
+                                <td class="py-2 px-3">Yohanes Kristian Wijaya</td>
+                                <td class="py-2 px-3">22 Juli 2009</td>
+                                <td class="py-2 px-3">9B</td>
+                                <td class="py-2 px-3">450000</td>
+                                <td class="py-2 px-3">150000</td>
+                                <td class="py-2 px-3">0</td>
+                                <td class="py-2 px-3">Lunas</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <button onclick="downloadSampleCSV()" class="mt-4 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all">
+                    Download Template CSV
+                </button>
+            </div>
+            
+            <!-- Upload Status -->
+            <div id="uploadStatus" class="hidden mb-6"></div>
+            
+            <!-- Current Data Preview -->
+            <div id="dataPreview" class="hidden">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Data Siswa Saat Ini</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full border border-gray-200 rounded-lg">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="text-left py-3 px-4 font-semibold">ID Siswa</th>
+                                <th class="text-left py-3 px-4 font-semibold">Nama</th>
+                                <th class="text-left py-3 px-4 font-semibold">Kelas</th>
+                                <th class="text-left py-3 px-4 font-semibold">Total Tagihan</th>
+                                <th class="text-left py-3 px-4 font-semibold">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginSection" class="hidden container mx-auto px-4 py-12 max-w-md">
+        <div class="bg-white rounded-2xl card-shadow p-8 fade-in">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 serviam-green rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <span class="text-white text-2xl font-bold">SY</span>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Masuk ke Portal</h2>
+                <p class="text-gray-600">Masukkan Nomor Induk Siswa Anda</p>
+            </div>
+            
+            <form onsubmit="login(event)" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Nomor Induk Siswa</label>
+                    <input type="text" id="studentId" required 
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                           placeholder="Contoh: 2024001">
+                </div>
+                <button type="submit" 
+                        class="w-full serviam-green text-white py-3 rounded-lg font-semibold hover:opacity-90 transition-all transform hover:scale-105">
+                    Masuk
+                </button>
+            </form>
+            
+            <div class="mt-4 text-center">
+                <button onclick="showAdminLogin()" class="text-green-600 hover:text-green-800 text-sm font-medium">Panel Admin</button>
+            </div>
+            
+            <div id="loginError" class="hidden mt-4 p-3 bg-red-100 border border-red-300 rounded-lg text-red-700 text-sm"></div>
+        </div>
+    </div>
+
+    <!-- Student Dashboard -->
+    <div id="dashboardSection" class="hidden container mx-auto px-4 py-8">
+        <!-- Student Info Card -->
+        <div class="bg-white rounded-2xl card-shadow p-6 mb-8 fade-in">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Informasi Siswa</h2>
+                <button onclick="logout()" class="text-green-600 hover:text-green-800 font-medium">Keluar</button>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Nama Lengkap</label>
+                        <p id="studentName" class="text-lg font-semibold text-gray-800">-</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Tanggal Lahir</label>
+                        <p id="studentBirthday" class="text-lg text-gray-800">-</p>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Kelas</label>
+                        <p id="studentClass" class="text-lg font-semibold text-gray-800">-</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Nomor Induk</label>
+                        <p id="displayStudentId" class="text-lg text-gray-800">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fee Details Card -->
+        <div class="bg-white rounded-2xl card-shadow p-6 fade-in">
+            <h3 class="text-2xl font-bold text-gray-800 mb-6">Rincian Tagihan</h3>
+            
+            <div class="space-y-4 mb-6">
+                <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                    <div>
+                        <p class="font-semibold text-gray-800">SPP Bulanan</p>
+                        <p class="text-sm text-gray-600">Biaya pendidikan bulanan</p>
+                    </div>
+                    <p id="tuitionFee" class="text-lg font-bold text-green-600">Rp 0</p>
+                </div>
+                
+                <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                    <div>
+                        <p class="font-semibold text-gray-800">Biaya Gedung</p>
+                        <p class="text-sm text-gray-600">Pemeliharaan fasilitas sekolah</p>
+                    </div>
+                    <p id="buildingFee" class="text-lg font-bold text-green-600">Rp 0</p>
+                </div>
+                
+                <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                    <div>
+                        <p class="font-semibold text-gray-800">Biaya Seragam</p>
+                        <p class="text-sm text-gray-600">Seragam dan perlengkapan</p>
+                    </div>
+                    <p id="uniformFee" class="text-lg font-bold text-green-600">Rp 0</p>
+                </div>
+            </div>
+            
+            <div class="serviam-green rounded-xl p-6 text-white">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-green-100 mb-1">Total Tagihan</p>
+                        <p id="totalFee" class="text-3xl font-bold">Rp 0</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-green-100 mb-1">Status</p>
+                        <span id="paymentStatus" class="bg-yellow-500 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold">Belum Lunas</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 text-center">
+                <button class="serviam-green text-white px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-all transform hover:scale-105">
+                    Bayar Sekarang
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Admin password - Change this to your desired password
+        const ADMIN_PASSWORD = "admin123";
+        
+        // Student database - will be populated from CSV/Excel files
+        let studentDatabase = {
+            '2024001': {
+                name: 'Maria Angelica Putri',
+                birthday: '15 Maret 2010',
+                class: '8A',
+                tuition: 450000,
+                building: 150000,
+                uniform: 200000,
+                status: 'Belum Lunas'
+            },
+            '2024002': {
+                name: 'Yohanes Kristian Wijaya',
+                birthday: '22 Juli 2009',
+                class: '9B',
+                tuition: 450000,
+                building: 150000,
+                uniform: 0,
+                status: 'Lunas'
+            },
+            '2024003': {
+                name: 'Theresia Magdalena Sari',
+                birthday: '8 November 2010',
+                class: '7C',
+                tuition: 450000,
+                building: 150000,
+                uniform: 200000,
+                status: 'Belum Lunas'
+            }
+        };
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(amount);
+        }
+
+        function showAdminLogin() {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('adminSection').classList.add('hidden');
+            document.getElementById('adminLoginSection').classList.remove('hidden');
+        }
+
+        function adminLogin(event) {
+            event.preventDefault();
+            const password = document.getElementById('adminPassword').value;
+            const errorDiv = document.getElementById('adminLoginError');
+            
+            if (password === ADMIN_PASSWORD) {
+                document.getElementById('adminLoginSection').classList.add('hidden');
+                document.getElementById('adminSection').classList.remove('hidden');
+                document.getElementById('adminPassword').value = '';
+                errorDiv.classList.add('hidden');
+                updateDataPreview();
+            } else {
+                errorDiv.textContent = 'Password salah! Silakan coba lagi.';
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        function adminLogout() {
+            document.getElementById('adminSection').classList.add('hidden');
+            document.getElementById('loginSection').classList.remove('hidden');
+        }
+
+        function showLogin() {
+            document.getElementById('adminSection').classList.add('hidden');
+            document.getElementById('adminLoginSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('loginSection').classList.remove('hidden');
+        }
+
+        function downloadSampleCSV() {
+            const csvContent = `student_id,name,birthday,class,tuition,building,uniform,status
+2024001,Maria Angelica Putri,15 Maret 2010,8A,450000,150000,200000,Belum Lunas
+2024002,Yohanes Kristian Wijaya,22 Juli 2009,9B,450000,150000,0,Lunas
+2024003,Theresia Magdalena Sari,8 November 2010,7C,450000,150000,200000,Belum Lunas`;
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'template_data_siswa.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let data;
+                    if (file.name.endsWith('.csv')) {
+                        data = parseCSV(e.target.result);
+                    } else {
+                        const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        data = XLSX.utils.sheet_to_json(worksheet);
+                    }
+                    
+                    processStudentData(data);
+                } catch (error) {
+                    showUploadStatus('error', 'Error membaca file: ' + error.message);
+                }
+            };
+            
+            if (file.name.endsWith('.csv')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsBinaryString(file);
+            }
+        }
+
+        function parseCSV(csvText) {
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim()) {
+                    const values = lines[i].split(',').map(v => v.trim());
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index] || '';
+                    });
+                    data.push(row);
+                }
+            }
+            return data;
+        }
+
+        function processStudentData(data) {
+            let successCount = 0;
+            let errorCount = 0;
+            const newDatabase = {};
+
+            data.forEach((row, index) => {
+                try {
+                    const studentId = row.student_id || row['student_id'];
+                    if (!studentId) {
+                        errorCount++;
+                        return;
+                    }
+
+                    newDatabase[studentId] = {
+                        name: row.name || '',
+                        birthday: row.birthday || '',
+                        class: row.class || '',
+                        tuition: parseInt(row.tuition) || 0,
+                        building: parseInt(row.building) || 0,
+                        uniform: parseInt(row.uniform) || 0,
+                        status: row.status || 'Belum Lunas'
+                    };
+                    successCount++;
+                } catch (error) {
+                    errorCount++;
+                }
+            });
+
+            if (successCount > 0) {
+                studentDatabase = newDatabase;
+                showUploadStatus('success', `Berhasil mengimport ${successCount} data siswa!`);
+                updateDataPreview();
+            } else {
+                showUploadStatus('error', 'Tidak ada data yang berhasil diimport. Periksa format file Anda.');
+            }
+        }
+
+        function showUploadStatus(type, message) {
+            const statusDiv = document.getElementById('uploadStatus');
+            statusDiv.className = `mb-6 p-4 rounded-lg ${type === 'success' ? 'bg-green-100 border border-green-300 text-green-700' : 'bg-red-100 border border-red-300 text-red-700'}`;
+            statusDiv.textContent = message;
+            statusDiv.classList.remove('hidden');
+        }
+
+        function updateDataPreview() {
+            const preview = document.getElementById('dataPreview');
+            const tbody = document.getElementById('dataTableBody');
+            
+            tbody.innerHTML = '';
+            
+            Object.keys(studentDatabase).forEach(studentId => {
+                const student = studentDatabase[studentId];
+                const total = student.tuition + student.building + student.uniform;
+                
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-200';
+                row.innerHTML = `
+                    <td class="py-3 px-4">${studentId}</td>
+                    <td class="py-3 px-4">${student.name}</td>
+                    <td class="py-3 px-4">${student.class}</td>
+                    <td class="py-3 px-4">${formatCurrency(total)}</td>
+                    <td class="py-3 px-4">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${student.status === 'Lunas' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                            ${student.status}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            preview.classList.remove('hidden');
+        }
+
+        function login(event) {
+            event.preventDefault();
+            const studentId = document.getElementById('studentId').value.trim();
+            const errorDiv = document.getElementById('loginError');
+            
+            if (studentDatabase[studentId]) {
+                const student = studentDatabase[studentId];
+                
+                // Hide login section and show dashboard
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('dashboardSection').classList.remove('hidden');
+                
+                // Populate student information
+                document.getElementById('studentName').textContent = student.name;
+                document.getElementById('studentBirthday').textContent = student.birthday;
+                document.getElementById('studentClass').textContent = student.class;
+                document.getElementById('displayStudentId').textContent = studentId;
+                
+                // Populate fee information
+                document.getElementById('tuitionFee').textContent = formatCurrency(student.tuition);
+                document.getElementById('buildingFee').textContent = formatCurrency(student.building);
+                document.getElementById('uniformFee').textContent = formatCurrency(student.uniform);
+                
+                const total = student.tuition + student.building + student.uniform;
+                document.getElementById('totalFee').textContent = formatCurrency(total);
+                
+                // Update payment status
+                const statusElement = document.getElementById('paymentStatus');
+                if (student.status === 'Lunas') {
+                    statusElement.textContent = 'Lunas';
+                    statusElement.className = 'bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold';
+                } else {
+                    statusElement.textContent = 'Belum Lunas';
+                    statusElement.className = 'bg-yellow-500 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold';
+                }
+                
+                errorDiv.classList.add('hidden');
+            } else {
+                errorDiv.textContent = 'Nomor Induk Siswa tidak ditemukan. Silakan periksa kembali.';
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        function logout() {
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('studentId').value = '';
+            document.getElementById('loginError').classList.add('hidden');
+        }
+
+        // Initialize with student login visible
+        document.addEventListener('DOMContentLoaded', function() {
+            showLogin();
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9794059f80b3959b',t:'MTc1Njg4OTY2MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
