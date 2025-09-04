@@ -6,6 +6,7 @@
     <title>Portal Pembayaran - SMP Santo Yusup</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         .serviam-green { background: linear-gradient(135deg, #2d5016, #4a7c59); }
         .serviam-light { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); }
@@ -74,7 +75,7 @@
                     <label for="csvFile" class="cursor-pointer">
                         <div class="text-gray-500 mb-2">
                             <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m..."></path>
                             </svg>
                         </div>
                         <p class="text-lg font-medium text-gray-700">Klik untuk upload file CSV/Excel</p>
@@ -264,55 +265,23 @@
             
             <div class="mt-6 text-center">
                 <button class="serviam-green text-white px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-all transform hover:scale-105">
-                    Bayar Sekarang
+                    Terimakasih
                 </button>
             </div>
         </div>
     </div>
 
     <script>
+        // === Supabase Setup ===
+        // Replace these with your own Supabase project URL and anon key!
+        const SUPABASE_URL = 'https://jfrazgfgonoxmakuegqy.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmcmF6Z2Znb25veG1ha3VlZ3F5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5NjAwODcsImV4cCI6MjA3MjUzNjA4N30.hhPBPMSDJ-KVYGUcmPhl1OiSXG0T581k3kXUmPpxPg0';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
         // Admin password - Change this to your desired password
         const ADMIN_PASSWORD = "admin123";
-        
-        // Student database - will be populated from CSV/Excel files
-        let studentDatabase = {
-            '2024001': {
-                name: 'Maria Angelica Putri',
-                birthday: '15 Maret 2010',
-                class: '8A',
-                tuition: 450000,
-                building: 150000,
-                uniform: 200000,
-                status: 'Belum Lunas'
-            },
-            '2024002': {
-                name: 'Yohanes Kristian Wijaya',
-                birthday: '22 Juli 2009',
-                class: '9B',
-                tuition: 450000,
-                building: 150000,
-                uniform: 0,
-                status: 'Lunas'
-            },
-            '2024003': {
-                name: 'Theresia Magdalena Sari',
-                birthday: '8 November 2010',
-                class: '7C',
-                tuition: 450000,
-                building: 150000,
-                uniform: 200000,
-                status: 'Belum Lunas'
-            }
-        };
 
-        function formatCurrency(amount) {
-            return new Intl.NumberFormat('id-ID', {
-                style: 'currency',
-                currency: 'IDR',
-                minimumFractionDigits: 0
-            }).format(amount);
-        }
-
+        // Show Admin Login
         function showAdminLogin() {
             document.getElementById('loginSection').classList.add('hidden');
             document.getElementById('dashboardSection').classList.add('hidden');
@@ -369,7 +338,7 @@
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
                     let data;
                     if (file.name.endsWith('.csv')) {
@@ -381,7 +350,7 @@
                         data = XLSX.utils.sheet_to_json(worksheet);
                     }
                     
-                    processStudentData(data);
+                    await processStudentData(data);
                 } catch (error) {
                     showUploadStatus('error', 'Error membaca file: ' + error.message);
                 }
@@ -412,20 +381,22 @@
             return data;
         }
 
-        function processStudentData(data) {
+        async function processStudentData(data) {
             let successCount = 0;
             let errorCount = 0;
-            const newDatabase = {};
 
-            data.forEach((row, index) => {
+            // We'll upsert each student row
+            for (const row of data) {
                 try {
                     const studentId = row.student_id || row['student_id'];
                     if (!studentId) {
                         errorCount++;
-                        return;
+                        continue;
                     }
 
-                    newDatabase[studentId] = {
+                    // Build student object
+                    const student = {
+                        student_id: studentId,
                         name: row.name || '',
                         birthday: row.birthday || '',
                         class: row.class || '',
@@ -434,14 +405,23 @@
                         uniform: parseInt(row.uniform) || 0,
                         status: row.status || 'Belum Lunas'
                     };
-                    successCount++;
+
+                    // UPSERT (insert/update) into Supabase
+                    const { error } = await supabase
+                        .from('students')
+                        .upsert([student], { onConflict: ['student_id'] });
+
+                    if (error) {
+                        errorCount++;
+                    } else {
+                        successCount++;
+                    }
                 } catch (error) {
                     errorCount++;
                 }
-            });
+            }
 
             if (successCount > 0) {
-                studentDatabase = newDatabase;
                 showUploadStatus('success', `Berhasil mengimport ${successCount} data siswa!`);
                 updateDataPreview();
             } else {
@@ -456,76 +436,94 @@
             statusDiv.classList.remove('hidden');
         }
 
-        function updateDataPreview() {
+        async function updateDataPreview() {
             const preview = document.getElementById('dataPreview');
             const tbody = document.getElementById('dataTableBody');
-            
             tbody.innerHTML = '';
-            
-            Object.keys(studentDatabase).forEach(studentId => {
-                const student = studentDatabase[studentId];
+
+            // Fetch all students from Supabase
+            const { data: students, error } = await supabase.from('students').select('*').order('student_id', { ascending: true });
+
+            if (!students || error) {
+                preview.classList.add('hidden');
+                return;
+            }
+
+            students.forEach(student => {
                 const total = student.tuition + student.building + student.uniform;
-                
                 const row = document.createElement('tr');
                 row.className = 'border-b border-gray-200';
                 row.innerHTML = `
-                    <td class="py-3 px-4">${studentId}</td>
+                    <td class="py-3 px-4">${student.student_id}</td>
                     <td class="py-3 px-4">${student.name}</td>
                     <td class="py-3 px-4">${student.class}</td>
                     <td class="py-3 px-4">${formatCurrency(total)}</td>
                     <td class="py-3 px-4">
-                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${student.status === 'Lunas' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
-                            ${student.status}
-                        </span>
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${student.status === 'Lunas' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${student.status}</span>
                     </td>
                 `;
                 tbody.appendChild(row);
             });
-            
+
             preview.classList.remove('hidden');
         }
 
-        function login(event) {
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(amount);
+        }
+
+        async function login(event) {
             event.preventDefault();
             const studentId = document.getElementById('studentId').value.trim();
             const errorDiv = document.getElementById('loginError');
-            
-            if (studentDatabase[studentId]) {
-                const student = studentDatabase[studentId];
-                
-                // Hide login section and show dashboard
-                document.getElementById('loginSection').classList.add('hidden');
-                document.getElementById('dashboardSection').classList.remove('hidden');
-                
-                // Populate student information
-                document.getElementById('studentName').textContent = student.name;
-                document.getElementById('studentBirthday').textContent = student.birthday;
-                document.getElementById('studentClass').textContent = student.class;
-                document.getElementById('displayStudentId').textContent = studentId;
-                
-                // Populate fee information
-                document.getElementById('tuitionFee').textContent = formatCurrency(student.tuition);
-                document.getElementById('buildingFee').textContent = formatCurrency(student.building);
-                document.getElementById('uniformFee').textContent = formatCurrency(student.uniform);
-                
-                const total = student.tuition + student.building + student.uniform;
-                document.getElementById('totalFee').textContent = formatCurrency(total);
-                
-                // Update payment status
-                const statusElement = document.getElementById('paymentStatus');
-                if (student.status === 'Lunas') {
-                    statusElement.textContent = 'Lunas';
-                    statusElement.className = 'bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold';
-                } else {
-                    statusElement.textContent = 'Belum Lunas';
-                    statusElement.className = 'bg-yellow-500 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold';
-                }
-                
-                errorDiv.classList.add('hidden');
-            } else {
+
+            // Fetch student from Supabase
+            const { data: studentArr, error } = await supabase
+                .from('students')
+                .select('*')
+                .eq('student_id', studentId);
+
+            if (error || !studentArr || studentArr.length === 0) {
                 errorDiv.textContent = 'Nomor Induk Siswa tidak ditemukan. Silakan periksa kembali.';
                 errorDiv.classList.remove('hidden');
+                return;
             }
+
+            const student = studentArr[0];
+
+            // Hide login section and show dashboard
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+
+            // Populate student information
+            document.getElementById('studentName').textContent = student.name;
+            document.getElementById('studentBirthday').textContent = student.birthday;
+            document.getElementById('studentClass').textContent = student.class;
+            document.getElementById('displayStudentId').textContent = studentId;
+
+            // Populate fee information
+            document.getElementById('tuitionFee').textContent = formatCurrency(student.tuition);
+            document.getElementById('buildingFee').textContent = formatCurrency(student.building);
+            document.getElementById('uniformFee').textContent = formatCurrency(student.uniform);
+
+            const total = student.tuition + student.building + student.uniform;
+            document.getElementById('totalFee').textContent = formatCurrency(total);
+
+            // Update payment status
+            const statusElement = document.getElementById('paymentStatus');
+            if (student.status === 'Lunas') {
+                statusElement.textContent = 'Lunas';
+                statusElement.className = 'bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold';
+            } else {
+                statusElement.textContent = 'Belum Lunas';
+                statusElement.className = 'bg-yellow-500 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold';
+            }
+
+            errorDiv.classList.add('hidden');
         }
 
         function logout() {
@@ -540,5 +538,5 @@
             showLogin();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9794059f80b3959b',t:'MTc1Njg4OTY2MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
